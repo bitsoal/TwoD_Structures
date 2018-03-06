@@ -14,7 +14,7 @@ from pymatgen.analysis.structure_matcher import StructureMatcher
 import os, copy
 
 
-# In[2]:
+# In[1]:
 
 
 class TwoD_Structure(Structure):
@@ -356,9 +356,13 @@ class TwoD_Structure(Structure):
         """
         assert self.is_standard_2D, "Error: method Two_Structure_2_Slab is only available if the 2D structure is a         standard 2D structure which is created by get_standard_structure method"
         
+        slab_thickness = self.get_structure_thickness()
+        if slab_thickness < 1:
+            print("Note that the actual slab thickness is less than 1, this 2D material may be strictly planar. reset it to 1")
+            slab_thickness = 1
         slabgen_input_dict = {"initial_structure": self, 
                               "miller_index":(0, 0, 1), 
-                              "min_slab_size": self.get_structure_thickness(), 
+                              "min_slab_size": slab_thickness, 
                               "min_vacuum_size": self.get_vacuum_thickness()}
         
         slab_list = SlabGenerator(**slabgen_input_dict).get_slabs(tol=tolerance)
