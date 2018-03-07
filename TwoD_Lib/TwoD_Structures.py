@@ -14,7 +14,7 @@ from pymatgen.analysis.structure_matcher import StructureMatcher
 import os, copy
 
 
-# In[1]:
+# In[2]:
 
 
 class TwoD_Structure(Structure):
@@ -151,7 +151,7 @@ class TwoD_Structure(Structure):
                             Note that it should be a fractional number relative to the lattice vector C.
         Note that this method is only available for standard 2D structures which can be obatined by calling method get_standard_structure
         output:
-            a tuple - (new_structure, center)
+            return the new structure
         """
         assert self.is_standard_2D, "Error: this method is only available for standard 2D structure which can be obtained by calling method get_standard_structure"
         
@@ -166,7 +166,7 @@ class TwoD_Structure(Structure):
             
         new_structure.is_standard_2D = True
             
-        return (new_structure, center)
+        return new_structure
     
     @classmethod
     def from_file(cls, filename, primitive=False, sort=False, merge_tol=0.0):
@@ -293,7 +293,7 @@ class TwoD_Structure(Structure):
         
         return (lattice, positions, numbers)
     
-    def is_top_and_bottom_surfaces_equivalent(self, symprec=1e-5):
+    def are_top_and_bottom_surfaces_equivalent(self, symprec=1e-5):
         """    Check if the top and bottom surfaces are equivalent.
         return True if equivalent; False otherwise.
         input argument:
