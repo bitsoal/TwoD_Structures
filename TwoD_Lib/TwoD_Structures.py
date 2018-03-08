@@ -13,7 +13,7 @@ from pymatgen.core.surface import SlabGenerator
 import os, copy
 
 
-# In[12]:
+# In[2]:
 
 
 class TwoD_Structure(Structure):
@@ -283,11 +283,12 @@ class TwoD_Structure(Structure):
         
         species = self.species
         cart_coords = np.copy(self.cart_coords)
+        frac_coords = np.copy(self.frac_coords)
         
         self.modify_lattice(new_lattice)
         
         for atom_ind in range(len(species)):
-            self[atom_ind] = species[atom_ind], cart_coords[atom_ind]/self.lattice.c
+            self[atom_ind] = species[atom_ind], list(frac_coords[atom_ind, :2]) + [cart_coords[atom_ind, 2]/self.lattice.c]
             
         self.standardize_structure()
         
