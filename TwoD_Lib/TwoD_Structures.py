@@ -1,6 +1,13 @@
 
 # coding: utf-8
 
+# In[ ]:
+
+
+# author: Yang Tong
+# email: bitsoal@gmail.com
+
+
 # In[1]:
 
 
@@ -203,6 +210,36 @@ class TwoD_Structure(Structure):
         return TwoD_Structure(**input_argument_dict)
     
     @classmethod
+    def unify_structure(cls, structure, ref_structure, alignment_type="bottom", upside_down=False):
+        """
+        Take ref_structure as a reference and change structure from the three aspects below:
+            1. modify the lattice vector c of structure to that of ref_structure.
+            2. turn the structure upside down if upside_down is True;
+            3. align the 2D structure to ref_structure such that they share the same lowest/highest c coordinate or their
+                geometry center coincide with each other along the c direction.
+        input arguments:
+            - structure, ref_structure: TwoD_Structure objects
+            - aligment_type (str): three options - "bottom", "top", "center". Default: "bottom"
+            - upside_down (bool): whether to turn structure upside down. Default: False.
+        """
+        assert isinstance(structure, TwoD_Structure), "Error: input structure is not an instance of TwoD_Structure"
+        assert isinstance(ref_structure, TwoD_Structure), "Error: input ref_structure is not an instance of TwoD_Structure"
+        
+        #step 1: compare the lattice constant c
+        ref_latt_c, old_latt_c = ref_structure.lattice.c, structure.lattice.c
+        if old_latt_c != ref_latt_c:
+            structure.change_latt_c(new_latt_c=ref_latt_c, new_latt_c_is_cartesian=True)
+            
+        #step 2: whether to flip the structure
+        if upside_down:
+            structure.turn_structure_upside_down()
+            
+        #step 3: alignment
+        TwoD_Structure.align_along_c(structure=structure, ref_structure=ref_structure, alignment_type=alignment_type)
+        
+        
+    
+    @classmethod
     def align_along_c(cls, structure, ref_structure, alignment_type="bottom"):
         """
         align structure to ref_structure such that they share the same lowest/highest c coordinate or their geometry centers coincide
@@ -292,6 +329,24 @@ class TwoD_Structure(Structure):
             
         self.standardize_structure()
         
+    def change_latt_c(self, new_latt_c, new_latt_c_is_cartesian=True):
+        """
+        Change the length of the lattice vector c and at the end the standardize_structure will 
+            be called to standardize this structure.
+        input arguments:
+            - new_latt_c (float): the new length of the lattice vector c
+            - new_latt_c_is_cartesian (bool): if True, new_latt_c is in angstroms;
+                                            if False, new_latt_c fractional relative to the old lattice vector c
+                                            Default: True
+        """
+        structure_thickness = self.get_structure_thickness(thickness_is_cartesian=True)
+        
+        if new_latt_c_is_cartesian:
+            new_vacuum_thickness = new_latt_c - structure_thickness
+        else:
+            new_vacuum_thickness = new_latt_c * self.lattice.c - structure_thickness
+            
+        self.change_vacuum_thickness(new_vacuum_thickness=new_vacuum_thickness, thickness_is_cartesian=True)
          
     
     def get_spglib_input(self):
