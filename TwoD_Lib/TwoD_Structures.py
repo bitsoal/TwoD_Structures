@@ -20,7 +20,7 @@ from pymatgen.core.surface import SlabGenerator
 import os, copy
 
 
-# In[2]:
+# In[1]:
 
 
 class TwoD_Structure(Structure):
@@ -192,6 +192,10 @@ class TwoD_Structure(Structure):
                                "charge": structure.charge}
         
         return TwoD_Structure(**input_argument_dict)
+    
+    def to(self, **kwargs):
+        structure = Structure.from_dict(self.as_dict())
+        structure.to(**kwargs)
     
     @classmethod
     def from_dict(cls, dictionary):
