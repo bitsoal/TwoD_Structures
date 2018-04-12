@@ -1,14 +1,14 @@
 
 # coding: utf-8
 
-# In[ ]:
+# In[5]:
 
 
 # author: Yang Tong
 # email: bitsoal@gmail.com
 
 
-# In[1]:
+# In[6]:
 
 
 import numpy as np
@@ -20,7 +20,7 @@ from pymatgen.core.surface import SlabGenerator
 import os, copy
 
 
-# In[1]:
+# In[7]:
 
 
 class TwoD_Structure(Structure):
@@ -97,8 +97,6 @@ class TwoD_Structure(Structure):
         for atom_ind in range(len(species)):
             self[atom_ind] = species[atom_ind], new_frac_coords[atom_ind]
             
-        
-    
     
     def center_structure(self):
         """
@@ -180,6 +178,26 @@ class TwoD_Structure(Structure):
         for atom_ind, frac_coord in enumerate(frac_coords):
             new_coord = list(frac_coord[:2]) + [2*center-frac_coord[2]]
             self[atom_ind] = species[atom_ind], new_coord
+            
+    def get_strained_structure(self, strain):
+        """
+        return a new structure to which the strain is applied according to the input argument strain.
+        input argument:
+            - strain (list of 3 numbers): the direction in which the strain is applied is parallel to lattice vectors.
+                    e.g. strain=[0.01, -0.02, 0.05]:
+                        stretch lattice vector a such that the new lattice vector a is 1.01*(old lattice vector a) long.
+                        compress lattice vector b such that the new lattice vector b is 0.98*(old lattice vector b) long.
+                        stretch lattice vector c such that the new lattice vector c is 1.05*(old lattice vector c) long.
+                        
+        """
+        strain = strain[:3]
+        angles = self.lattice.angles
+        abc = self.lattice.abc
+        new_abc = [abc[i]*(1+strain[i]) for i in range(3)]
+        
+        new_lattice = Lattice.from_lengths_and_angles(abc=new_abc, ang=angles)
+        return TwoD_Structure(species=self.species, lattice=new_lattice, 
+                              coords=self.frac_coords, coords_are_cartesian=False)
                 
     
     @classmethod
@@ -484,6 +502,35 @@ class TwoD_Structure(Structure):
             return target_slab_list[0]
         else:
             return False
+        
+    def __add__(self, other, latt_tolerance=1.0e-5):
+        """
+        return a new structure of type TwoD_Structure  which has all atoms of this object and other.
+        input argument:
+            - other: a structure of type TwoD_Structure  to be added
+            - latt_tolerance (float): the max lattice difference between two to-be-added structures of type TwoD_Structure
+                                default: 1.0e-5
+        Note if the lattice difference is beyond the latt_tolerance, return False. 
+            Otherwise, return the new hybrid structure of type TwoD_Structure.
+        Note that the lattice of the current strucure will be adopted for the new structure
+        """
+        assert isinstance(other, TwoD_Structure), "Error: other must be a TwoD_Structure instance."
+        
+        diff = self.lattice.matrix - other.lattice.matrix
+        if latt_tolerance < np.max(np.abs(diff)):
+            return False
+        
+        new_species = self.species + other.species
+        new_frac_coords = list(self.frac_coords) + list(other.frac_coords)
+        
+        input_argument_dict = {"lattice": self.lattice, 
+                               "species": new_species, 
+                               "coords": new_frac_coords, 
+                               "coords_are_cartesian": False}
+        
+        return TwoD_Structure(**input_argument_dict)
+        
+        
                 
             
 
