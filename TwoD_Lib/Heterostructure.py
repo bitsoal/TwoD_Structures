@@ -1,12 +1,8 @@
 
 # coding: utf-8
 
-# In[ ]:
-
-
-author: Yang Tong
-email: bitsoal@gmail.com
-
+# author: Yang Tong
+# email: bitsoal@gmail.com
 
 # ## philosophy: 
 # ### I. Suppose the prim_a1 and prim_a2, prim_b1 and prim_b2 are the in-plane lattice vectors of two 2D structures, we try to search for those sub-lattice vector pairs (a1, a2, b1, b2) satisfying the conditions: |a1| = |b1| && |a2| = |b2| && angle < a1, a2 > == angle < b1, b2 > up to the acceptable max lattice strain and angle tolerance.
@@ -69,12 +65,8 @@ def get_valid_m2(inner_boundary, outer_boundary):
     
 
 
-# In[3]:
-
-
-get_valid_m2(inner_boundary=[1.0, 3.2], outer_boundary=[-4.6, 8.5])
-int(-0.23)
-
+# get_valid_m2(inner_boundary=[1.0, 3.2], outer_boundary=[-4.6, 8.5])
+# int(-0.23)
 
 # In[4]:
 
