@@ -1,7 +1,7 @@
 
 # coding: utf-8
 
-# author: Yang Tong
+# author: Yang Tong  
 # email: bitsoal@gmail.com
 
 # ## philosophy: 
@@ -28,47 +28,46 @@ from pymatgen import Lattice
 import pprint
 
 
-# In[2]:
-
-
-def solve_quadratic_equation(a, b, c):
-    delta = b**2 - 4*a*c
-    if delta < 0:
-        return []
-    elif delta == 0:
-        return [-b/(2*a)]
-    else:
-        sqr_delta = pow(delta, 0.5)
-        return [(-b-sqr_delta)/(2*a), (-b+sqr_delta)/(2*a)]
-    
-def get_valid_m2(inner_boundary, outer_boundary):
-    """
-    inner_boundary are a list of roots of the quadratic equation: a*x**2 + b*x + c = l
-    outer_boundary are a list of roots of the quadratic equation: a*x**2 + b*x +c = L
-    here l < L.
-    This function return a list of integer solutions of the inequality: l<= a*x**2 + b*x +c <=L
-    """
-    if len(outer_boundary) == 0:
-        return []
-    elif len(outer_boundary) == 1:
-        if abs(outer_boundary[0]-int(outer_boundary[0])) < 1.0e-5:
-            return [int(outer_boundary[0])]
-        else:
-            return []
-    else:
-        if len(inner_boundary) <= 1:
-            return [i for i in range(int(outer_boundary[0]), int(outer_boundary[1])+1)]
-        else:
-            m2_list = [i for i in range(int(outer_boundary[0]), int(inner_boundary[0])+1)]
-            m2_list += [i for i in range(int(inner_boundary[1]), int(outer_boundary[1])+1)]
-            return list(set(m2_list))
-    
-
+# def solve_quadratic_equation(a, b, c):
+#     delta = b**2 - 4*a*c
+#     if delta < 0:
+#         return []
+#     elif delta == 0:
+#         return [-b/(2*a)]
+#     else:
+#         sqr_delta = pow(delta, 0.5)
+#         return [(-b-sqr_delta)/(2*a), (-b+sqr_delta)/(2*a)]
+#     
+# def get_valid_m2(inner_boundary, outer_boundary):
+#     """
+#     inner_boundary are a list of roots of the quadratic equation: a*x**2 + b*x + c = l
+#     outer_boundary are a list of roots of the quadratic equation: a*x**2 + b*x +c = L
+#     here l < L.
+#     This function return a list of integer solutions of the inequality: l<= a*x**2 + b*x +c <=L
+#     """
+#     if len(outer_boundary) == 0:
+#         return []
+#     elif len(outer_boundary) == 1:
+#         if abs(outer_boundary[0]-int(outer_boundary[0])) < 1.0e-5:
+#             return [int(outer_boundary[0])]
+#         else:
+#             return []
+#     else:
+#         if len(inner_boundary) <= 1:
+#             return [i for i in range(int(outer_boundary[0])-1, int(outer_boundary[1])+2)]
+#         else:
+#             m2_list = [i for i in range(int(outer_boundary[0])-1, int(inner_boundary[0])+1)]
+#             m2_list += [i for i in range(int(inner_boundary[1]), int(outer_boundary[1])+2)]
+#             return list(set(m2_list))
+#         
+# def group_list(old_list, no_of_ele_per_group=10):
+#     pass
+#     
 
 # get_valid_m2(inner_boundary=[1.0, 3.2], outer_boundary=[-4.6, 8.5])
 # int(-0.23)
 
-# In[4]:
+# In[2]:
 
 
 class Heterostructure():
@@ -213,50 +212,31 @@ class Heterostructure():
         a1, a2 = self.structure_1.lattice.matrix[0, :], self.structure_1.lattice.matrix[1, :]
         b1, b2 = self.structure_2.lattice.matrix[0, :], self.structure_2.lattice.matrix[1, :]
         
+        a_sub_latt_list=Heterostructure.generate_sub_latt_vectors(a1=a1, a2=a2, min_length=self.min_length, max_length=self.max_length)
+        b_sub_latt_list=Heterostructure.generate_sub_latt_vectors(a1=b1, a2=b2, min_length=self.min_length, max_length=self.max_length)
+        
+        
+        input_args = {"sub_latt_list_of_a":  a_sub_latt_list, 
+                      "sub_latt_list_of_b":  b_sub_latt_list, 
+                      "angle_range_cosine": self.angle_range_cosine, 
+                      "angle_tolerance_in_deg": self.angle_tolerance_in_deg, 
+                      "relative_strain_tolerance": self.relative_strain_tolerance, 
+                      "strain_on_which": self.strain_on_which}
         matched_a1_a2_b1_b2_pair_list = []
-        if self.max_length -1 > self.min_length:
-            local_max_length = self.min_length + 1
-        else:
-            local_max_length = self.max_length
-        local_min_length = self.min_length
-        while True:
-            length_range = {"min_length": local_min_length, "max_length": local_max_length}
-            a1_a2_sub_latt_list = Heterostructure.generate_sub_latt_vectors(a1, a2, **length_range)
-            b1_b2_sub_latt_list = Heterostructure.generate_sub_latt_vectors(b1, b2, **length_range)
-        
-            input_args = {"sub_latt_list_of_a": a1_a2_sub_latt_list, 
-                          "sub_latt_list_of_b": b1_b2_sub_latt_list, 
-                          "angle_range_cosine": self.angle_range_cosine, 
-                          "angle_tolerance_in_deg": self.angle_tolerance_in_deg, 
-                          "relative_strain_tolerance": self.relative_strain_tolerance, 
-                          "strain_on_which": self.strain_on_which}
-            
-            matched_a1_a2_b1_b2_pair_list += list(Heterostructure.generate_matched_a1_a2_b1_b2_pairs(**input_args))
-            
-            if len(matched_a1_a2_b1_b2_pair_list) >= 10:
+        matched_pair_iter = Heterostructure.generate_matched_a1_a2_b1_b2_pairs(**input_args)
+        for matched_pair in matched_pair_iter:
+            matched_a1_a2_b1_b2_pair_list.append(matched_pair)
+            if len(matched_a1_a2_b1_b2_pair_list) == 5:
                 break
-            
-            if local_max_length == self.max_length:
-                break
-            elif local_max_length + 1 > self.max_length:
-                local_max_length = self.max_length
-            else:
-                local_max_length += 1
-                
-            local_min_length += 1
-            
+                      
         
-            #pprint.pprint(matched_a1_a2_b1_b2_pair_list)
+        #pprint.pprint(matched_a1_a2_b1_b2_pair_list)
         no_of_pairs = len(matched_a1_a2_b1_b2_pair_list)
         if no_of_pairs == 0:
             return False
         
-        sorted_matched_pair_list = Heterostructure.sort_a1_a2_b1_b2_pair_by_area(matched_a1_a2_b1_b2_pair_list)
+        return Heterostructure.sort_a1_a2_b1_b2_pair_by_area(matched_a1_a2_b1_b2_pair_list)[0]
         
-        if no_of_pairs >= 10:
-            return Heterostructure.sort_a1_a2_b1_b2_pair_by_length_ratio(sorted_matched_pair_list[:5])[0]
-        else:
-            return sorted_matched_pair_list[0]
         
       
     @classmethod
@@ -276,29 +256,20 @@ class Heterostructure():
         a1, a2 = np.array(a1)[:2], np.array(a2)[:2]
     
         sub_latts = []
-        max_multiple = max([int(max_length/np.linalg.norm(a, ord=2)) for a in [a1, a2]])+1
-        ab = np.dot(a1, a2)
-        min_length_2, max_length_2 = pow(min_length, 2), pow(max_length, 2)
-        a1_2, a2_2 = pow(np.linalg.norm(a1, ord=2), 2), pow(np.linalg.norm(a2, ord=2), 2)
-        for m1 in range(-max_multiple, max_multiple+1):
-            inner_boundary = solve_quadratic_equation(a2_2, 2*m1*ab, pow(m1, 2)*a1_2-min_length_2)
-            outer_boundary = solve_quadratic_equation(a2_2, 2*m1*ab, pow(m1, 2)*a1_2-max_length_2)
-            valid_m2_list = get_valid_m2(inner_boundary, outer_boundary)
-            brute_force_m2_list = []
-            for m2 in range(-max_multiple, max_multiple+1): #valid_m2_list:#
+        max_m1 = int(max_length/np.linalg.norm(a1, ord=2))+1
+        max_m2 = int(max_length/np.linalg.norm(a2, ord=2))+1
+        for m1 in range(-max_m1, max_m1+1):
+            for m2 in range(-max_m2, max_m2+1):
                 new_latt = m1*a1 + m2*a2
                 norm = np.linalg.norm(new_latt, ord=2)
                 if min_length <= norm <= max_length:
                     sub_latts.append([new_latt, norm, m1, m2])
-                    brute_force_m2_list.append([m1, m2])
-            for ms in brute_force_m2_list:
-                if ms[1] not in valid_m2_list:
-                    print(ms+inner_boundary+outer_boundary)
-        return sub_latts
+        return sorted(sub_latts, key=lambda sub_lat: sub_lat[1])
     
     @classmethod
-    def generate_matched_a1_a2_b1_b2_pairs(cls, sub_latt_list_of_a, sub_latt_list_of_b, angle_range_cosine=[-0.6, 0.6], 
-                                           angle_tolerance_in_deg=1.0e-5, relative_strain_tolerance=1.0e-2, strain_on_which=[1, 1, 1, 1]):
+    def generate_matched_a1_a2_b1_b2_pairs(cls, sub_latt_list_of_a, sub_latt_list_of_b,
+                                           angle_range_cosine=[-0.6, 0.6], angle_tolerance_in_deg=1.0e-5, 
+                                           relative_strain_tolerance=1.0e-2, strain_on_which=[1, 1, 1, 1]):
         """
         pick any two sub-lattice vectors from sub_latt_list_of_a and assign them to the new lattice vectors denoted as a1 and a2.
         pick any two sub-lattice vectors from sub_latt_list_of_b and assign them to the new lattice vectors denoted as b1 and b2.
@@ -330,67 +301,84 @@ class Heterostructure():
                 strained_a1_a2_ratio: norm(strained a1) / norm(strained a2)
                 strained_area: strained_norm1 * strained_norm2 * sin((<a1, a2>+<b1, b2>)/2)
     """
-        for a1, a2 in itertools.permutations(sub_latt_list_of_a, 2):
-            cos_a_angle = Heterostructure.find_cos_rotaion_angle(a1[0], a2[0], find_sign=False)
-            cos_a_sign = Heterostructure.find_cos_rotaion_angle(a1[0], a2[0], find_sign=True)
-            #print(cos_a_angle, cos_a_sign)
-            
-            if cos_a_sign < 0 or angle_range_cosine[0] > cos_a_angle or angle_range_cosine[1] < cos_a_angle:
-                continue
                 
-            #pprint.pprint(a1)
-            
-            for b1, b2 in itertools.permutations(sub_latt_list_of_b, 2):
-                #print(a1[1:]+a2[1:]+b1[1:]+b2[1:])
-                cos_b_angle = Heterostructure.find_cos_rotaion_angle(b1[0], b2[0], find_sign=False)
-                cos_b_sign = Heterostructure.find_cos_rotaion_angle(b1[0], b2[0], find_sign=True)
-                if cos_b_sign < 0 or angle_range_cosine[0] > cos_b_angle or angle_range_cosine[1] < cos_b_angle:
-                    continue
-                
-                #Check if angle <a1, a2> is equal to angle <b1, b2> within the given tolerance.
-                if abs(np.arccos(cos_a_angle) - np.arccos(cos_b_angle))*180/np.pi > angle_tolerance_in_deg:
-                    continue
-                
-                
-                #Check if the applied strain is below the given tolerance
-                a1_norm, b1_norm = a1[1], b1[1]
-                if strain_on_which[0] == strain_on_which[2]:
-                    strained_norm1 = (a1_norm+b1_norm)/2
-                elif strain_on_which[0] == 1:
-                    strained_norm1 = b1_norm
-                else:
-                    strained_norm1 = a1_norm
-                strain_on_a1, strain_on_b1 = (strained_norm1-a1_norm)/a1_norm, (strained_norm1-b1_norm)/b1_norm
-                if abs(strain_on_a1) > relative_strain_tolerance or abs(strain_on_b1) > relative_strain_tolerance:
-                    continue
+        #pprint.pprint(sub_latt_list_of_a1)
+        #pprint.pprint(sub_latt_list_of_a2)
+        #pprint.pprint(sub_latt_list_of_b1)
+        #pprint.pprint(sub_latt_list_of_b2)
+        #for a1, b1 in zip(sub_latt_list_of_a1, sub_latt_list_of_b1):
+        #    for a2, b2 in zip(sub_latt_list_of_a2, sub_latt_list_of_b2):
+        #        a1_a2_pairs.append([a1, a2])
+        #        b1_b2_pairs.append([b1, b2])
         
-                a2_norm, b2_norm = a2[1], b2[1]
-                if strain_on_which[1] == strain_on_which[3]:
-                    strained_norm2 = (a2_norm+b2_norm)/2
-                elif strain_on_which[1] == 1:
-                    strained_norm2 = b2_norm
-                else:
-                    strained_norm2 = a2_norm
-                strain_on_a2, strain_on_b2 = (strained_norm2-a2_norm)/a2_norm, (strained_norm2-b2_norm)/b2_norm
-                if abs(strain_on_a2) > relative_strain_tolerance or abs(strain_on_b2) > relative_strain_tolerance:
+        strain_on_which_a1_b1 = [strain_on_which[0], strain_on_which[2]]
+        strain_on_which_a2_b2 = [strain_on_which[1], strain_on_which[3]]
+        for a1_ind, a1 in enumerate(sub_latt_list_of_a):
+            for b1_ind, b1 in enumerate(sub_latt_list_of_b):
+                strained_norm1, strain_on_a1, strain_on_b1 = Heterostructure.cal_strain(length_1=a1[1], length_2=b1[1], 
+                                                                                        strain_on_which=strain_on_which_a1_b1)
+                if max([abs(strain_on_a1), abs(strain_on_b1)]) > relative_strain_tolerance:
                     continue
+                
+                for a2 in sub_latt_list_of_a[:a1_ind+1]:
+                    for b2 in sub_latt_list_of_b[:b1_ind+1]:
+                        strained_norm2, strain_on_a2, strain_on_b2 = Heterostructure.cal_strain(length_1=a2[1], length_2=b2[1], 
+                                                                                                strain_on_which=strain_on_which_a2_b2)
+                        if max([abs(strain_on_a2), abs(strain_on_b2)]) > relative_strain_tolerance:
+                            continue
+                            
+                        cos_a_angle = Heterostructure.find_cos_rotaion_angle(a1[0], a2[0], find_sign=False)
+                        cos_a_sign = Heterostructure.find_cos_rotaion_angle(a1[0], a2[0], find_sign=True)
+                        if cos_a_sign < 0 or angle_range_cosine[0] > cos_a_angle or angle_range_cosine[1] < cos_a_angle:
+                            continue
+                            
+                        cos_b_angle = Heterostructure.find_cos_rotaion_angle(b1[0], b2[0], find_sign=False)
+                        cos_b_sign = Heterostructure.find_cos_rotaion_angle(b1[0], b2[0], find_sign=True)
+                        if cos_b_sign < 0 or angle_range_cosine[0] > cos_b_angle or angle_range_cosine[1] < cos_b_angle:
+                            continue
+                
+                        #Check if angle <a1, a2> is equal to angle <b1, b2> within the given tolerance.
+                        if abs(np.arccos(cos_a_angle) - np.arccos(cos_b_angle))*180/np.pi > angle_tolerance_in_deg:
+                            continue
                 
         
-                dict_ = {"a1": a1[0], "a1_norm": a1[1], "a1_m1": a1[2], "a1_m2":a1[3],
-                        "a2": a2[0], "a2_norm": a2[1], "a2_m1": a2[2], "a2_m2": a2[3],
-                        "b1": b1[0], "b1_norm": b1[1], "b1_m1": b1[2], "b1_m2": b1[3],
-                        "b2": b2[0], "b2_norm": b2[1], "b2_m1": b2[2], "b2_m2": b2[3],
-                         "a_angle": np.arccos(cos_a_angle)*180/np.pi, "b_angle": np.arccos(cos_b_angle)*180/np.pi, 
-                         "strain_on_a1": strain_on_a1, "strain_on_a2": strain_on_a2, 
-                         "strain_on_b1": strain_on_b1, "strain_on_b2": strain_on_b2, 
-                         "a1_a2_area": np.abs(np.cross(a1[0], a2[0])), 
-                         "b1_b2_area": np.abs(np.cross(b1[0], b2[0])), 
-                         "strained_a1_a2_ratio": strained_norm1 / strained_norm2,
-                         "a1_a2_ratio": a1[1]/a2[1], "b1_b2_ratio": b1[1]/b2[1]}
-                strained_area = strained_norm1 * strained_norm2 * np.abs(np.sin(np.deg2rad(dict_["a_angle"]+dict_["b_angle"])/2))
-                dict_["strained_area"] = strained_area
+                        dict_ = {"a1": a1[0], "a1_norm": a1[1], "a1_m1": a1[2], "a1_m2":a1[3],
+                                 "a2": a2[0], "a2_norm": a2[1], "a2_m1": a2[2], "a2_m2": a2[3],
+                                 "b1": b1[0], "b1_norm": b1[1], "b1_m1": b1[2], "b1_m2": b1[3],
+                                 "b2": b2[0], "b2_norm": b2[1], "b2_m1": b2[2], "b2_m2": b2[3],
+                                 "a_angle": np.arccos(cos_a_angle)*180/np.pi, "b_angle": np.arccos(cos_b_angle)*180/np.pi, 
+                                 "strain_on_a1": strain_on_a1, "strain_on_a2": strain_on_a2, 
+                                 "strain_on_b1": strain_on_b1, "strain_on_b2": strain_on_b2, 
+                                 "a1_a2_area": np.abs(np.cross(a1[0], a2[0])), 
+                                 "b1_b2_area": np.abs(np.cross(b1[0], b2[0])), 
+                                 "strained_a1_a2_ratio": strained_norm1 / strained_norm2,
+                                 "a1_a2_ratio": a1[1]/a2[1], "b1_b2_ratio": b1[1]/b2[1]}
+                        strained_area = strained_norm1 * strained_norm2 * np.abs(np.sin(np.deg2rad(dict_["a_angle"]+dict_["b_angle"])/2))
+                        dict_["strained_area"] = strained_area
                 
-                yield dict_
+                        yield dict_
+                
+    @classmethod
+    def cal_strain(cls, length_1, length_2, strain_on_which):
+        """
+        calculate the strain in percentage that is applied to length_1 or length_2 such that they have the same length.
+        input arguments:
+            - length_1 (float)
+            - length_2 (float)
+            - strain_on_which (a list of 2 quasi-boolean ): decide to which the strain is applied.
+                [0, 1]: apply the strain to length_2
+                [1, 0]: apply the strain to length_1
+                [0, 0] or [1, 1]: the strain is equally borne by both length_1 and length_2
+        """
+        if strain_on_which[0] == strain_on_which[1]:
+            strained_length = (length_1+length_2)/2
+        elif strain_on_which[0] == 1:
+            strained_length = length_2
+        else:
+            strained_length = length_1
+        strain_on_length_1 = (strained_length-length_1)/length_1
+        strain_on_length_2 = (strained_length-length_2)/length_2
+        return (strained_length, strain_on_length_1, strain_on_length_2)
                 
     @classmethod
     def sort_a1_a2_b1_b2_pair_by_area(cls, a1_a2_b1_b2_pairs_list):
@@ -420,6 +408,7 @@ class Heterostructure():
             - find_sign: If True, will return the sign of the rotation: return 1 (-1) if the rotaion is anti-clockwise (clockwise)
                      If False, return cos(angle) in radians between vector1 and vector2
         """
+        #print(vector1, vector2)
         if find_sign:
             sign = 1 if np.cross(vector1, vector2) < 0 else -1
             return sign
@@ -459,7 +448,7 @@ class Heterostructure():
         return new_structure_1, new_structure_2
 
 
-# In[5]:
+# In[3]:
 
 
 if __name__ == "__main__":
@@ -534,3 +523,12 @@ if __name__ == "__main__":
     else:
         print("No heterostructure satisfying the given tough tolerance.")
 
+
+# hetero = Heterostructure(structure_filename_1="test_cif/WSe2-CONTCAR.cif", 
+#                          structure_filename_2="test_cif/SnSe2-CONTCAR.cif", 
+#                          relative_strain_tolerance=0.005, 
+#                          max_length=20)
+
+# hetero.find_best_matched_sub_latt_pairs()
+
+# sorted([{"a": 1, "b":2}, {"a":0, "b": 3}], key=lambda dict_: dict_["b"])
