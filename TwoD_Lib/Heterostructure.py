@@ -88,8 +88,8 @@ class Heterostructure():
         - vacuum_thickness (float or int): the thickness of the vacuum layer in angstroms. Default: 20
         - min_length (float or int): the minmum lattice constant of the to-be-built heterostructure. Default: 0.1
         - max_length (float or int): the maximum lattice constant of the to-be-built heterostructure. Default: 20
-        - angle_range_consine (a list of two float or int numbers): the lower and upper bound of the angle between the in-plane lattice
-                                    vectors. Here the cosine value is adopted. Default: [-0.6, 0.6]
+        - angle_range_in_deg (a list of two float or int numbers): the lower and upper bound of the angle in degrees between the in-plane lattice
+                                    vectors. . Default: [29, 161]
         - angle_tolerance_in_deg (float): the maximum difference of the in-plane lattice angle between supercells of parent 1 and 2.
                                     Here the value is in degree. Default: 1.0e-5
         - relative_strain_tolerance (float): the maximum strain that can be applied to the supercells of parent 1 and parent 2 while the
@@ -110,12 +110,13 @@ class Heterostructure():
                                     if the numbers of lattice vector a/b for both parents are the same, the strain will be equally
                                         borne by the two lattice vector a/b. e.g. [1, 0, 1, 1], [0, 0, 0, 1]
                                 Default: [1, 1, 1, 1]
+        - max_no_of_atoms (int): the max number of atoms of the construtured heterostructure. Default: 150
     """
     
-    def __init__(self, structure_filename_1, structure_filename_2, 
+    def __init__(self, structure_filename_1, structure_filename_2,
                  interlayer_spacing=3, vacuum_thickness = 20,
                  min_length=0.1, max_length=20, 
-                 angle_range_cosine=[-0.6, 0.6], angle_tolerance_in_deg=1.0e-5, 
+                 angle_range_in_deg=[29, 161], angle_tolerance_in_deg=1.0e-5, 
                  relative_strain_tolerance=1.0e-2, strain_on_which=[1, 1, 1, 1]):
         self.structure_filename_1 = structure_filename_1
         self.structure_1 = TwoD_Structure.from_file(structure_filename_1)
@@ -123,12 +124,20 @@ class Heterostructure():
         self.structure_2 = TwoD_Structure.from_file(structure_filename_2)
         self.min_length = min_length
         self.max_length = max_length
-        self.angle_range_cosine = angle_range_cosine
+        self.angle_range_in_deg = angle_range_in_deg
         self.angle_tolerance_in_deg = angle_tolerance_in_deg
         self.relative_strain_tolerance = relative_strain_tolerance
         self.strain_on_which = strain_on_which
         self.interlayer_spacing = interlayer_spacing
         self.vacuum_thickness = vacuum_thickness
+
+        
+    def _count_atoms(self, supercell_a1, supercell_a2, which_system=1):
+        supercell_area = abs(np.cross(supercell_a1, supercell_a2))
+        if which_system == 1:
+            return round(supercell_area*self.no_of_atoms_1/self.area_1)
+        else:
+            return round(supercell_area*self.no_of_atoms_2/self.area_2)
         
     def build_best_matched_heterostructure(self):
         """
@@ -150,6 +159,12 @@ class Heterostructure():
         a2_m1, a2_m2 = best_a1_a2_b1_b2_pair["a2_m1"], best_a1_a2_b1_b2_pair["a2_m2"]
         b1_m1, b1_m2 = best_a1_a2_b1_b2_pair["b1_m1"], best_a1_a2_b1_b2_pair["b1_m2"]
         b2_m1, b2_m2 = best_a1_a2_b1_b2_pair["b2_m1"], best_a1_a2_b1_b2_pair["b2_m2"]
+        #pprint.pprint([[a1_m1, a1_m2, 0],
+        #               [a2_m1, a2_m2, 0], 
+        #               [0, 0, 1]])
+        #pprint.pprint([[b1_m1, b1_m2, 0], 
+        #               [b2_m1, b2_m2, 0], 
+        #               [0, 0, 1]])
         structure_1.make_supercell(scaling_matrix=[[a1_m1, a1_m2, 0],
                                                    [a2_m1, a2_m2, 0], 
                                                    [0, 0, 1]])
@@ -218,24 +233,21 @@ class Heterostructure():
         
         input_args = {"sub_latt_list_of_a":  a_sub_latt_list, 
                       "sub_latt_list_of_b":  b_sub_latt_list, 
-                      "angle_range_cosine": self.angle_range_cosine, 
+                      "angle_range_in_deg": self.angle_range_in_deg, 
                       "angle_tolerance_in_deg": self.angle_tolerance_in_deg, 
                       "relative_strain_tolerance": self.relative_strain_tolerance, 
                       "strain_on_which": self.strain_on_which}
-        matched_a1_a2_b1_b2_pair_list = []
+        matched_a1_a2_b1_b2_pair = None
         matched_pair_iter = Heterostructure.generate_matched_a1_a2_b1_b2_pairs(**input_args)
         for matched_pair in matched_pair_iter:
-            matched_a1_a2_b1_b2_pair_list.append(matched_pair)
-            if len(matched_a1_a2_b1_b2_pair_list) == 5:
-                break
+            matched_a1_a2_b1_b2_pair = matched_pair
+            break
                       
         
-        #pprint.pprint(matched_a1_a2_b1_b2_pair_list)
-        no_of_pairs = len(matched_a1_a2_b1_b2_pair_list)
-        if no_of_pairs == 0:
+        if matched_a1_a2_b1_b2_pair == None:
             return False
-        
-        return Heterostructure.sort_a1_a2_b1_b2_pair_by_area(matched_a1_a2_b1_b2_pair_list)[0]
+        else:
+            return matched_a1_a2_b1_b2_pair
         
         
       
@@ -263,12 +275,12 @@ class Heterostructure():
                 new_latt = m1*a1 + m2*a2
                 norm = np.linalg.norm(new_latt, ord=2)
                 if min_length <= norm <= max_length:
-                    sub_latts.append([new_latt, norm, m1, m2])
+                    sub_latts.append([new_latt, norm, m1, m2, Heterostructure.find_angle_wrt_x_axis(new_latt)])
         return sorted(sub_latts, key=lambda sub_lat: sub_lat[1])
     
     @classmethod
     def generate_matched_a1_a2_b1_b2_pairs(cls, sub_latt_list_of_a, sub_latt_list_of_b,
-                                           angle_range_cosine=[-0.6, 0.6], angle_tolerance_in_deg=1.0e-5, 
+                                           angle_range_in_deg=[29, 162], angle_tolerance_in_deg=1.0e-5, 
                                            relative_strain_tolerance=1.0e-2, strain_on_which=[1, 1, 1, 1]):
         """
         pick any two sub-lattice vectors from sub_latt_list_of_a and assign them to the new lattice vectors denoted as a1 and a2.
@@ -278,7 +290,7 @@ class Heterostructure():
         input arguments:
             - sub_latt_list_of_a: a list of sub-lattice vectors generated by function "generate_sub_latt_vectors"
             - sub_latt_list_of_b: a list of sub-lattice vectors generated by function "generate_sub_latt_vectors"
-            - angle_range_cosine: apply a constraint to the angle made by lattice vectors. Default [-0.6, 0.6] 
+            - angle_range_in_deg: apply a constraint to the angle in degrees made by lattice vectors. Default [29, 161] 
             - angle_tolerance_in_deg: the tolerance between angle <a1, a2> and angle <b1, b2>. Default: 1.0e-5
             - relative_strain_tolerance: the max relative mismatch between lattice vectors. Default: 0.01
             - strain_on_which: determine whether strains can be applied to [a1, a2, b1, b2].
@@ -321,24 +333,26 @@ class Heterostructure():
                     continue
                 
                 for a2 in sub_latt_list_of_a[:a1_ind+1]:
+                    if a1[4] <= a2[4]:
+                        continue
+                        
                     for b2 in sub_latt_list_of_b[:b1_ind+1]:
+                        if b1[4] <= b2[4]:
+                            continue
+                            
                         strained_norm2, strain_on_a2, strain_on_b2 = Heterostructure.cal_strain(length_1=a2[1], length_2=b2[1], 
                                                                                                 strain_on_which=strain_on_which_a2_b2)
                         if max([abs(strain_on_a2), abs(strain_on_b2)]) > relative_strain_tolerance:
                             continue
                             
-                        cos_a_angle = Heterostructure.find_cos_rotaion_angle(a1[0], a2[0], find_sign=False)
-                        cos_a_sign = Heterostructure.find_cos_rotaion_angle(a1[0], a2[0], find_sign=True)
-                        if cos_a_sign < 0 or angle_range_cosine[0] > cos_a_angle or angle_range_cosine[1] < cos_a_angle:
-                            continue
-                            
-                        cos_b_angle = Heterostructure.find_cos_rotaion_angle(b1[0], b2[0], find_sign=False)
-                        cos_b_sign = Heterostructure.find_cos_rotaion_angle(b1[0], b2[0], find_sign=True)
-                        if cos_b_sign < 0 or angle_range_cosine[0] > cos_b_angle or angle_range_cosine[1] < cos_b_angle:
-                            continue
                 
                         #Check if angle <a1, a2> is equal to angle <b1, b2> within the given tolerance.
-                        if abs(np.arccos(cos_a_angle) - np.arccos(cos_b_angle))*180/np.pi > angle_tolerance_in_deg:
+                        angle_a, angle_b = a1[4] - a2[4], b1[4]-b2[4]
+                        if abs(angle_a-angle_b) > angle_tolerance_in_deg:
+                            continue
+                            
+                        #Check if angle <a1, a2> and angle <b1, b2> fall into the given inverval
+                        if (angle_a+angle_b)/2 <angle_range_in_deg[0] or (angle_a+angle_b)/2 > angle_range_in_deg[1]:
                             continue
                 
         
@@ -346,14 +360,14 @@ class Heterostructure():
                                  "a2": a2[0], "a2_norm": a2[1], "a2_m1": a2[2], "a2_m2": a2[3],
                                  "b1": b1[0], "b1_norm": b1[1], "b1_m1": b1[2], "b1_m2": b1[3],
                                  "b2": b2[0], "b2_norm": b2[1], "b2_m1": b2[2], "b2_m2": b2[3],
-                                 "a_angle": np.arccos(cos_a_angle)*180/np.pi, "b_angle": np.arccos(cos_b_angle)*180/np.pi, 
+                                 "a_angle": angle_a, "b_angle": angle_b, 
                                  "strain_on_a1": strain_on_a1, "strain_on_a2": strain_on_a2, 
                                  "strain_on_b1": strain_on_b1, "strain_on_b2": strain_on_b2, 
                                  "a1_a2_area": np.abs(np.cross(a1[0], a2[0])), 
                                  "b1_b2_area": np.abs(np.cross(b1[0], b2[0])), 
                                  "strained_a1_a2_ratio": strained_norm1 / strained_norm2,
                                  "a1_a2_ratio": a1[1]/a2[1], "b1_b2_ratio": b1[1]/b2[1]}
-                        strained_area = strained_norm1 * strained_norm2 * np.abs(np.sin(np.deg2rad(dict_["a_angle"]+dict_["b_angle"])/2))
+                        strained_area = strained_norm1 * strained_norm2 * np.abs(np.sin((angle_a+angle_b)/2))
                         dict_["strained_area"] = strained_area
                 
                         yield dict_
@@ -417,6 +431,20 @@ class Heterostructure():
             return cos_angle
         
     @classmethod
+    def find_angle_wrt_x_axis(cls, vector):
+        """
+        return the angle in degrees made between in-plane vector and the x axis.
+        The returned angle range [0, 360)
+        """
+        cos_angle = np.inner(vector, np.array([1, 0]))/np.linalg.norm(vector, ord=2)
+        angle = np.rad2deg(np.arccos(cos_angle))
+        if vector[1] >= 0:
+            return angle
+        else:
+            return 360-angle
+        
+        
+    @classmethod
     def unify_in_plane_lattice_angle(cls, structure_1, structure_2, tolerance=1.0e-5):
         """
         If the difference in the in-plane (a-b) lattice angle between structure_1 and structure_2 is smaller than tolerance,
@@ -447,6 +475,9 @@ class Heterostructure():
         new_structure_2 = TwoD_Structure(lattice=new_lattice_2, species=species_2, coords=frac_coords_2, coords_are_cartesian=False)
         return new_structure_1, new_structure_2
 
+
+# np.linalg.norm(np.array([3, 4]))
+# np.arccos(1)
 
 # In[3]:
 
@@ -524,11 +555,13 @@ if __name__ == "__main__":
         print("No heterostructure satisfying the given tough tolerance.")
 
 
-# hetero = Heterostructure(structure_filename_1="test_cif/WSe2-CONTCAR.cif", 
-#                          structure_filename_2="test_cif/SnSe2-CONTCAR.cif", 
+# hetero = Heterostructure(structure_filename_1="test_cif/H-CrS2-CONTCAR.cif", 
+#                          structure_filename_2="test_cif/H-MoO2-CONTCAR.cif", 
 #                          relative_strain_tolerance=0.005, 
-#                          max_length=20)
+#                          max_length=40)
 
 # hetero.find_best_matched_sub_latt_pairs()
+
+# round(np.float64(1.0))
 
 # sorted([{"a": 1, "b":2}, {"a":0, "b": 3}], key=lambda dict_: dict_["b"])
