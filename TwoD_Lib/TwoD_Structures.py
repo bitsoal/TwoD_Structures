@@ -1,26 +1,32 @@
-
+#!/usr/bin/env python
 # coding: utf-8
 
-# In[5]:
+# In[4]:
 
 
 # author: Yang Tong
 # email: bitsoal@gmail.com
 
 
-# In[6]:
+# In[5]:
 
 
 import numpy as np
 import spglib
 
-from pymatgen import Structure, Lattice
+from pymatgen.core import Structure, Lattice
 from pymatgen.core.surface import SlabGenerator
 
 import os, copy
 
 
-# In[7]:
+# In[12]:
+
+
+help(sorted)
+
+
+# In[15]:
 
 
 class TwoD_Structure(Structure):
@@ -91,8 +97,11 @@ class TwoD_Structure(Structure):
         for atom_ind, old_frac_coord in enumerate(self.frac_coords):
             new_frac_coords[atom_ind] = np.dot(old_frac_coord, inv_transformation_matrix)
             
-        new_lattice = Lattice.from_lengths_and_angles(abc=self.lattice.abc, ang=new_angles)
-        self.modify_lattice(new_lattice)
+        #new_lattice = Lattice.from_lengths_and_angles(abc=self.lattice.abc, ang=new_angles)
+        new_lattice = Lattice.from_parameters(a=self.lattice.a, b=self.lattice.b, c=self.lattice.c, 
+                                              alpha=new_angles[0], beta=new_angles[1], gamma=new_angles[2])
+        #self.modify_lattice(new_lattice) this works in pymatgen 2
+        self.lattice = new_lattice
         
         for atom_ind in range(len(species)):
             self[atom_ind] = species[atom_ind], new_frac_coords[atom_ind]
@@ -117,7 +126,7 @@ class TwoD_Structure(Structure):
             new_coord = [self._map_into_0_to_1_range(coord_) for coord_ in coord]
             self[atom_ind] = species[atom_ind], new_coord
             
-    def make_all_atoms_together(self, critical_frac_c_diff=0.5):
+    def make_all_atoms_together_old(self, critical_frac_c_diff=0.5):
         """
         This method deals with the case where some atoms are at the top of the cell, while the other at the bottom.
         modification: map the atoms at the cell top downwards.
@@ -135,6 +144,30 @@ class TwoD_Structure(Structure):
                 self[atom_ind] = species[atom_ind], list(coord[:2]) + [coord[2]-1]
                 
                 
+    def make_all_atoms_together(self):
+        """
+        This method deals with the case where some atoms are at the top of the cell, while the other at the bottom.
+        modification: map the atoms at the cell top downwards.
+        The atoms at the cell top are those whose c coordinate is more than 
+            critical_frac_c_diff away from the c coordinate of the lowest atom
+        critical_frac_c_diff (float): default to 0.5
+        """
+        max_c, min_c = max(self.frac_coords[:, 2]), min(self.frac_coords[:, 2])
+        sorted_frac_z_coord = sorted(self.frac_coords[:, 2])
+        diff_n_sum_frac_z = []
+        for z0, z1 in zip(sorted_frac_z_coord, sorted_frac_z_coord[1:]+[sorted_frac_z_coord[0]+1]):
+            diff_n_sum_frac_z.append((z0, z1, z1 - z0, (z1 + z0)/2))
+        z0, z1, vac_frac_size, vac_cen_frac_z = sorted(diff_n_sum_frac_z, key=lambda entry: entry[2], reverse=True)[0]
+        print("The max difference between two nearby fractional z in the sorted fractional z array is identified: ")
+        print("\tz0={}, z1={}, (z1-z0)={}, (z1+z0)/2={}".format(z0, z1, vac_frac_size, vac_cen_frac_z))
+        print("\tSo the region between z0 and z1 is considered as the vaccum layer with a fractional center along z=(z1+z0)/2")
+        
+        species = self.species
+        frac_coords = self.frac_coords
+            
+        for atom_ind, coord in enumerate(frac_coords):
+            if coord[2]-min_c > vac_cen_frac_z:
+                self[atom_ind] = species[atom_ind], list(coord[:2]) + [coord[2]-1]
             
     def shift_along_c(self, shift_dis, shift_dis_is_cartesian=False):
         """
@@ -195,7 +228,9 @@ class TwoD_Structure(Structure):
         abc = self.lattice.abc
         new_abc = [abc[i]*(1+strain[i]) for i in range(3)]
         
-        new_lattice = Lattice.from_lengths_and_angles(abc=new_abc, ang=angles)
+        #new_lattice = Lattice.from_lengths_and_angles(abc=new_abc, ang=angles)
+        new_lattice = Lattice.from_parameters(a=new_abc[0], b=new_abc[1], c=new_abc[2], 
+                                              alpha=angles[0], beta=angles[1], gamma=angles[2])
         return TwoD_Structure(species=self.species, lattice=new_lattice, 
                               coords=self.frac_coords, coords_are_cartesian=False)
                 
@@ -344,7 +379,8 @@ class TwoD_Structure(Structure):
         cart_coords = np.copy(self.cart_coords)
         frac_coords = np.copy(self.frac_coords)
         
-        self.modify_lattice(new_lattice)
+        #self.modify_lattice(new_lattice) this works in pymatgen 2
+        self.lattice = new_lattice
         
         for atom_ind in range(len(species)):
             self[atom_ind] = species[atom_ind], list(frac_coords[atom_ind, :2]) + [cart_coords[atom_ind, 2]/self.lattice.c]
@@ -532,5 +568,5 @@ class TwoD_Structure(Structure):
         
         
                 
-            
+           
 
